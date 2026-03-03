@@ -1,0 +1,96 @@
+package main
+
+import (
+	"agnos-gin/config"
+	"agnos-gin/internal/domain"
+	"agnos-gin/internal/handler"
+	"agnos-gin/internal/infrastructure"
+	"agnos-gin/internal/middleware"
+	"agnos-gin/internal/repository"
+	"agnos-gin/internal/service"
+	"fmt"
+	"log"
+	"time" // ERROR FIX: This import is required for time.Sleep
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+)
+
+func main() {
+	// 1. Load Config
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatal("Cannot load config:", err)
+	}
+
+	// 2. Connect DB
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+		cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort)
+
+	var db *gorm.DB
+
+	// Retry connection logic
+	// CRITICAL FIX: We use '=' here, NOT ':=', to update the outer 'db' variable.
+	for i := 0; i < 10; i++ {
+		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		if err == nil {
+			log.Println("Database connected successfully.")
+			break
+		}
+		log.Printf("Waiting for database... (%d/10) Error: %v\n", i+1, err)
+		time.Sleep(2 * time.Second)
+	}
+
+	// If db is still nil or err exists after retries, we must stop.
+	if err != nil {
+		log.Fatal("Cannot connect to DB after retries:", err)
+	}
+
+	// 3. Migrate
+	// If the app crashed at line 37 before, it was likely here because 'db' was nil.
+	if err := db.AutoMigrate(&domain.Staff{}, &domain.Patient{}); err != nil {
+		log.Fatal("Migration failed:", err)
+	}
+
+	// 4. Init Layers
+	// Repos
+	staffRepo := repository.NewStaffRepository(db)
+	patientRepo := repository.NewPatientRepository(db)
+
+	// Infrastructure
+	hospitalClient := infrastructure.NewHospitalApiClient(cfg.HospitalAPIURL)
+
+	// Services
+	authService := service.NewAuthService(staffRepo, cfg.JWTSecret)
+	patientService := service.NewPatientService(patientRepo, hospitalClient)
+
+	// Handlers
+	authHandler := handler.NewAuthHandler(authService)
+	patientHandler := handler.NewPatientHandler(patientService)
+
+	// 5. Router
+	r := gin.Default()
+
+	// Serve static files (CSS, JS)
+	r.Static("/static", "./web")
+
+	// Serve the frontend page
+	r.GET("/", func(c *gin.Context) {
+		c.File("./web/index.html")
+	})
+
+	// Routes
+	r.POST("/staff/create", authHandler.Register)
+	r.POST("/staff/login", authHandler.Login)
+
+	protected := r.Group("/patient")
+	protected.Use(middleware.AuthMiddleware(cfg.JWTSecret))
+	{
+		protected.GET("/search", patientHandler.Search)
+	}
+
+	// Run
+	log.Println("Server starting on :8080")
+	r.Run(":8080")
+}

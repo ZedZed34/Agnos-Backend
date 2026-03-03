@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agnos Hospital Middleware</title>
+    <meta name="description" content="Hospital middleware system for searching and managing patient information">
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Auth View -->
+    <div id="auth-view" class="view active">
+        <div class="auth-container">
+            <div class="auth-card glass">
+                <div class="logo">
+                    <div class="logo-icon">🏥</div>
+                    <h1>Agnos</h1>
+                    <p class="subtitle">Hospital Middleware System</p>
+                </div>
+
+                <!-- Tab Switcher -->
+                <div class="tab-switcher">
+                    <button class="tab active" data-tab="login" onclick="switchTab('login')">Login</button>
+                    <button class="tab" data-tab="register" onclick="switchTab('register')">Register</button>
+                </div>
+
+                <!-- Login Form -->
+                <form id="login-form" class="auth-form active" onsubmit="handleLogin(event)">
+                    <div class="input-group">
+                        <label for="login-username">Username</label>
+                        <input type="text" id="login-username" placeholder="Enter your username" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="login-password">Password</label>
+                        <input type="password" id="login-password" placeholder="Enter your password" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="login-hospital">Hospital</label>
+                        <select id="login-hospital" required>
+                            <option value="">Select hospital</option>
+                            <option value="Hospital A">Hospital A</option>
+                            <option value="Hospital B">Hospital B</option>
+                            <option value="Hospital C">Hospital C</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="login-btn">
+                        <span>Sign In</span>
+                    </button>
+                </form>
+
+                <!-- Register Form -->
+                <form id="register-form" class="auth-form" onsubmit="handleRegister(event)">
+                    <div class="input-group">
+                        <label for="reg-username">Username</label>
+                        <input type="text" id="reg-username" placeholder="Choose a username" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="reg-password">Password</label>
+                        <input type="password" id="reg-password" placeholder="Create a password" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="reg-hospital">Hospital</label>
+                        <select id="reg-hospital" required>
+                            <option value="">Select hospital</option>
+                            <option value="Hospital A">Hospital A</option>
+                            <option value="Hospital B">Hospital B</option>
+                            <option value="Hospital C">Hospital C</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="register-btn">
+                        <span>Create Account</span>
+                    </button>
+                </form>
+
+                <div id="auth-message" class="message"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard View -->
+    <div id="dashboard-view" class="view">
+        <!-- Nav -->
+        <nav class="navbar glass">
+            <div class="nav-brand">
+                <span class="nav-logo">🏥</span>
+                <span class="nav-title">Agnos</span>
+            </div>
+            <div class="nav-info">
+                <span id="nav-hospital" class="badge"></span>
+                <button class="btn btn-outline btn-sm" onclick="handleLogout()">Logout</button>
+            </div>
+        </nav>
+
+        <!-- Search Section -->
+        <main class="dashboard-content">
+            <div class="search-section glass">
+                <h2>🔍 Patient Search</h2>
+                <p class="search-desc">Search patients using any combination of filters. All fields are optional.</p>
+
+                <form id="search-form" onsubmit="handleSearch(event)">
+                    <div class="filter-grid">
+                        <div class="input-group">
+                            <label for="s-national-id">National ID</label>
+                            <input type="text" id="s-national-id" placeholder="e.g. 1234567890123">
+                        </div>
+                        <div class="input-group">
+                            <label for="s-passport-id">Passport ID</label>
+                            <input type="text" id="s-passport-id" placeholder="e.g. AB1234567">
+                        </div>
+                        <div class="input-group">
+                            <label for="s-first-name">First Name</label>
+                            <input type="text" id="s-first-name" placeholder="e.g. John">
+                        </div>
+                        <div class="input-group">
+                            <label for="s-middle-name">Middle Name</label>
+                            <input type="text" id="s-middle-name" placeholder="e.g. William">
+                        </div>
+                        <div class="input-group">
+                            <label for="s-last-name">Last Name</label>
+                            <input type="text" id="s-last-name" placeholder="e.g. Doe">
+                        </div>
+                        <div class="input-group">
+                            <label for="s-dob">Date of Birth</label>
+                            <input type="text" id="s-dob" placeholder="e.g. 1990-01-15">
+                        </div>
+                        <div class="input-group">
+                            <label for="s-phone">Phone Number</label>
+                            <input type="text" id="s-phone" placeholder="e.g. 0812345678">
+                        </div>
+                        <div class="input-group">
+                            <label for="s-email">Email</label>
+                            <input type="email" id="s-email" placeholder="e.g. john@hospital.com">
+                        </div>
+                    </div>
+                    <div class="search-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <span>Search Patients</span>
+                        </button>
+                        <button type="button" class="btn btn-outline" onclick="clearSearch()">Clear Filters</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Results -->
+            <div id="results-section" class="results-section" style="display:none;">
+                <div class="results-header">
+                    <h3>Results</h3>
+                    <span id="results-count" class="badge badge-info"></span>
+                </div>
+                <div id="results-container"></div>
+            </div>
+
+            <div id="search-message" class="message"></div>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
