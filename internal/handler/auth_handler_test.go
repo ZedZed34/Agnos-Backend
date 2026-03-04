@@ -95,10 +95,24 @@ func TestRegisterHandler_MissingFields(t *testing.T) {
 
 	r.ServeHTTP(w, req)
 
-	// Should succeed since gin doesn't enforce required fields without binding tags
-	// but will create a staff with empty fields
-	if w.Code != http.StatusCreated {
-		t.Fatalf("expected status 201, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 for missing required fields, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestLoginHandler_MissingFields(t *testing.T) {
+	repo := newMockStaffRepo()
+	r, _ := setupAuthRouter(repo)
+
+	body := `{}`
+	req := httptest.NewRequest("POST", "/staff/login", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 for missing required fields, got %d: %s", w.Code, w.Body.String())
 	}
 }
 

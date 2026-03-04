@@ -17,9 +17,9 @@ func NewAuthHandler(s *service.AuthService) *AuthHandler {
 
 func (h *AuthHandler) Register(c *gin.Context) {
 	var input struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-		Hospital string `json:"hospital"`
+		Username string `json:"username" binding:"required"`
+		Password string `json:"password" binding:"required"`
+		Hospital string `json:"hospital" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -34,9 +34,9 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 func (h *AuthHandler) Login(c *gin.Context) {
 	var input struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-		Hospital string `json:"hospital"`
+		Username string `json:"username" binding:"required"`
+		Password string `json:"password" binding:"required"`
+		Hospital string `json:"hospital" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
