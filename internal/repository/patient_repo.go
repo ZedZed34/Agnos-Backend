@@ -4,6 +4,7 @@ import (
 	"agnos-gin/internal/domain"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type patientRepo struct {
@@ -15,7 +16,12 @@ func NewPatientRepository(db *gorm.DB) domain.PatientRepository {
 }
 
 func (r *patientRepo) Create(p *domain.Patient) error {
-	return r.db.Create(p).Error
+	// FIX: Use OnConflict to Upsert (Update or Insert) the patient data.
+	// This ensures that if we fetch fresh data from the external API for an 
+	// existing patient, we update our local cache rather than failing or duplicating.
+	return r.db.Clauses(clause.OnConflict{
+		UpdateAll: true,
+	}).Create(p).Error
 }
 
 func (r *patientRepo) Search(filters map[string]interface{}, staffHospital string) ([]domain.Patient, error) {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 type HospitalApiClient struct {
@@ -20,7 +21,9 @@ func (c *HospitalApiClient) GetPatientByID(id string) (*domain.Patient, error) {
 	// Construct URL: https://hospital-a.api.co.th/patient/search/{id}
 	url := fmt.Sprintf("%s/patient/search/%s", c.BaseURL, id)
 	
-	resp, err := http.Get(url)
+	// FIX: Instantiate custom HTTP client with a 5-second timeout
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get(url)
 	if err != nil {
 		return nil, err
 	}
