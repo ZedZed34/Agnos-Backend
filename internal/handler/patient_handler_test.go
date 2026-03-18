@@ -23,10 +23,10 @@ func (m *mockPatientRepo) Create(p *domain.Patient) error {
 	return nil
 }
 
-func (m *mockPatientRepo) Search(filters map[string]interface{}, staffHospital string) ([]domain.Patient, error) {
+func (m *mockPatientRepo) Search(filters map[string]interface{}, hospitalID uint) ([]domain.Patient, error) {
 	var result []domain.Patient
 	for _, p := range m.patients {
-		if p.HospitalName == staffHospital {
+		if p.HospitalID == hospitalID {
 			result = append(result, p)
 		}
 	}
@@ -40,9 +40,9 @@ func setupPatientRouter(repo domain.PatientRepository) *gin.Engine {
 	handler := NewPatientHandler(patientService)
 
 	r := gin.New()
-	// Simulate authenticated request by setting hospital_name in context
+	// Simulate authenticated request by setting hospital_id in context
 	r.GET("/patient/search", func(c *gin.Context) {
-		c.Set("hospital_name", "Hospital A")
+		c.Set("hospital_id", uint(1)) // Hospital A
 		handler.Search(c)
 	})
 	return r
@@ -51,7 +51,7 @@ func setupPatientRouter(repo domain.PatientRepository) *gin.Engine {
 func TestSearchHandler_WithResults(t *testing.T) {
 	repo := &mockPatientRepo{
 		patients: []domain.Patient{
-			{ID: 1, FirstNameEN: "John", NationalID: "123", HospitalName: "Hospital A"},
+			{ID: 1, FirstNameEN: "John", NationalID: "123", HospitalID: 1},
 		},
 	}
 	r := setupPatientRouter(repo)
@@ -93,7 +93,7 @@ func TestSearchHandler_NoResults(t *testing.T) {
 func TestSearchHandler_MultipleFilters(t *testing.T) {
 	repo := &mockPatientRepo{
 		patients: []domain.Patient{
-			{ID: 1, FirstNameEN: "John", Email: "john@test.com", HospitalName: "Hospital A"},
+			{ID: 1, FirstNameEN: "John", Email: "john@test.com", HospitalID: 1},
 		},
 	}
 	r := setupPatientRouter(repo)
@@ -115,7 +115,7 @@ func TestSearchHandler_Unauthorized(t *testing.T) {
 	handler := NewPatientHandler(patientService)
 
 	r := gin.New()
-	// Do NOT set hospital_name in context to simulate unauthorized
+	// Do NOT set hospital_id in context to simulate unauthorized
 	r.GET("/patient/search", handler.Search)
 
 	req := httptest.NewRequest("GET", "/patient/search", nil)

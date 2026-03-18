@@ -19,6 +19,6 @@ func (r *staffRepo) Create(s *domain.Staff) error {
 
 func (r *staffRepo) FindByUsername(username string) (*domain.Staff, error) {
 	var s domain.Staff
-	err := r.db.Where("username = ?", username).First(&s).Error
+	err := r.db.Preload("Hospital").Where("username = ?", username).First(&s).Error
 	return &s, err
 }

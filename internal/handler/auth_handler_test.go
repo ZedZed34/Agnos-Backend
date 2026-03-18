@@ -16,11 +16,12 @@ import (
 // --- Mock Staff Repository ---
 
 type mockStaffRepo struct {
-	staff map[string]*domain.Staff
+	staff        map[string]*domain.Staff
+	hospitalRepo *mockHospitalRepo
 }
 
-func newMockStaffRepo() *mockStaffRepo {
-	return &mockStaffRepo{staff: make(map[string]*domain.Staff)}
+func newMockStaffRepo(hospitalRepo *mockHospitalRepo) *mockStaffRepo {
+	return &mockStaffRepo{staff: make(map[string]*domain.Staff), hospitalRepo: hospitalRepo}
 }
 
 func (m *mockStaffRepo) Create(s *domain.Staff) error {
@@ -28,6 +29,12 @@ func (m *mockStaffRepo) Create(s *domain.Staff) error {
 		return errors.New("duplicate key")
 	}
 	s.ID = uint(len(m.staff) + 1)
+	// Simulate Preload: populate Hospital relation
+	if m.hospitalRepo != nil {
+		if h, err := m.hospitalRepo.FindByID(s.HospitalID); err == nil {
+			s.Hospital = *h
+		}
+	}
 	m.staff[s.Username] = s
 	return nil
 }
@@ -40,9 +47,46 @@ func (m *mockStaffRepo) FindByUsername(username string) (*domain.Staff, error) {
 	return s, nil
 }
 
-func setupAuthRouter(repo domain.StaffRepository) (*gin.Engine, *AuthHandler) {
+// --- Mock Hospital Repository ---
+
+type mockHospitalRepo struct {
+	hospitals map[string]*domain.Hospital
+}
+
+func newMockHospitalRepo() *mockHospitalRepo {
+	repo := &mockHospitalRepo{hospitals: make(map[string]*domain.Hospital)}
+	// Seed default hospitals
+	repo.hospitals["Hospital A"] = &domain.Hospital{ID: 1, Name: "Hospital A"}
+	repo.hospitals["Hospital B"] = &domain.Hospital{ID: 2, Name: "Hospital B"}
+	return repo
+}
+
+func (m *mockHospitalRepo) Create(h *domain.Hospital) error {
+	h.ID = uint(len(m.hospitals) + 1)
+	m.hospitals[h.Name] = h
+	return nil
+}
+
+func (m *mockHospitalRepo) FindByName(name string) (*domain.Hospital, error) {
+	h, ok := m.hospitals[name]
+	if !ok {
+		return nil, errors.New("hospital not found")
+	}
+	return h, nil
+}
+
+func (m *mockHospitalRepo) FindByID(id uint) (*domain.Hospital, error) {
+	for _, h := range m.hospitals {
+		if h.ID == id {
+			return h, nil
+		}
+	}
+	return nil, errors.New("hospital not found")
+}
+
+func setupAuthRouter(staffRepo domain.StaffRepository, hospitalRepo domain.HospitalRepository) (*gin.Engine, *AuthHandler) {
 	gin.SetMode(gin.TestMode)
-	authService := service.NewAuthService(repo, "test-secret")
+	authService := service.NewAuthService(staffRepo, hospitalRepo, "test-secret")
 	handler := NewAuthHandler(authService)
 
 	r := gin.New()
@@ -54,8 +98,9 @@ func setupAuthRouter(repo domain.StaffRepository) (*gin.Engine, *AuthHandler) {
 // --- Register Tests ---
 
 func TestRegisterHandler_Success(t *testing.T) {
-	repo := newMockStaffRepo()
-	r, _ := setupAuthRouter(repo)
+	hospitalRepo := newMockHospitalRepo()
+	staffRepo := newMockStaffRepo(hospitalRepo)
+	r, _ := setupAuthRouter(staffRepo, hospitalRepo)
 
 	body := `{"username":"john","password":"password123","hospital":"Hospital A"}`
 	req := httptest.NewRequest("POST", "/staff/create", bytes.NewBufferString(body))
@@ -70,8 +115,9 @@ func TestRegisterHandler_Success(t *testing.T) {
 }
 
 func TestRegisterHandler_InvalidJSON(t *testing.T) {
-	repo := newMockStaffRepo()
-	r, _ := setupAuthRouter(repo)
+	hospitalRepo := newMockHospitalRepo()
+	staffRepo := newMockStaffRepo(hospitalRepo)
+	r, _ := setupAuthRouter(staffRepo, hospitalRepo)
 
 	req := httptest.NewRequest("POST", "/staff/create", bytes.NewBufferString("invalid"))
 	req.Header.Set("Content-Type", "application/json")
@@ -85,8 +131,9 @@ func TestRegisterHandler_InvalidJSON(t *testing.T) {
 }
 
 func TestRegisterHandler_MissingFields(t *testing.T) {
-	repo := newMockStaffRepo()
-	r, _ := setupAuthRouter(repo)
+	hospitalRepo := newMockHospitalRepo()
+	staffRepo := newMockStaffRepo(hospitalRepo)
+	r, _ := setupAuthRouter(staffRepo, hospitalRepo)
 
 	body := `{}`
 	req := httptest.NewRequest("POST", "/staff/create", bytes.NewBufferString(body))
@@ -100,9 +147,27 @@ func TestRegisterHandler_MissingFields(t *testing.T) {
 	}
 }
 
+func TestRegisterHandler_InvalidHospital(t *testing.T) {
+	hospitalRepo := newMockHospitalRepo()
+	staffRepo := newMockStaffRepo(hospitalRepo)
+	r, _ := setupAuthRouter(staffRepo, hospitalRepo)
+
+	body := `{"username":"john","password":"password123","hospital":"NonExistent Hospital"}`
+	req := httptest.NewRequest("POST", "/staff/create", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status 500 for invalid hospital, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
 func TestLoginHandler_MissingFields(t *testing.T) {
-	repo := newMockStaffRepo()
-	r, _ := setupAuthRouter(repo)
+	hospitalRepo := newMockHospitalRepo()
+	staffRepo := newMockStaffRepo(hospitalRepo)
+	r, _ := setupAuthRouter(staffRepo, hospitalRepo)
 
 	body := `{}`
 	req := httptest.NewRequest("POST", "/staff/login", bytes.NewBufferString(body))
@@ -119,8 +184,9 @@ func TestLoginHandler_MissingFields(t *testing.T) {
 // --- Login Tests ---
 
 func TestLoginHandler_Success(t *testing.T) {
-	repo := newMockStaffRepo()
-	r, _ := setupAuthRouter(repo)
+	hospitalRepo := newMockHospitalRepo()
+	staffRepo := newMockStaffRepo(hospitalRepo)
+	r, _ := setupAuthRouter(staffRepo, hospitalRepo)
 
 	// First register
 	regBody := `{"username":"john","password":"password123","hospital":"Hospital A"}`
@@ -148,8 +214,9 @@ func TestLoginHandler_Success(t *testing.T) {
 }
 
 func TestLoginHandler_WrongPassword(t *testing.T) {
-	repo := newMockStaffRepo()
-	r, _ := setupAuthRouter(repo)
+	hospitalRepo := newMockHospitalRepo()
+	staffRepo := newMockStaffRepo(hospitalRepo)
+	r, _ := setupAuthRouter(staffRepo, hospitalRepo)
 
 	regBody := `{"username":"john","password":"password123","hospital":"Hospital A"}`
 	regReq := httptest.NewRequest("POST", "/staff/create", bytes.NewBufferString(regBody))
@@ -169,8 +236,9 @@ func TestLoginHandler_WrongPassword(t *testing.T) {
 }
 
 func TestLoginHandler_InvalidJSON(t *testing.T) {
-	repo := newMockStaffRepo()
-	r, _ := setupAuthRouter(repo)
+	hospitalRepo := newMockHospitalRepo()
+	staffRepo := newMockStaffRepo(hospitalRepo)
+	r, _ := setupAuthRouter(staffRepo, hospitalRepo)
 
 	req := httptest.NewRequest("POST", "/staff/login", bytes.NewBufferString("not json"))
 	req.Header.Set("Content-Type", "application/json")

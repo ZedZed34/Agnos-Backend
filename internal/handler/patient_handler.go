@@ -16,7 +16,7 @@ func NewPatientHandler(s *service.PatientService) *PatientHandler {
 }
 
 func (h *PatientHandler) Search(c *gin.Context) {
-	hospital, exists := c.Get("hospital_name")
+	hospitalID, exists := c.Get("hospital_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
@@ -48,7 +48,7 @@ func (h *PatientHandler) Search(c *gin.Context) {
 		filters["email"] = v
 	}
 
-	patients, err := h.service.Search(filters, hospital.(string))
+	patients, err := h.service.Search(filters, hospitalID.(uint))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

@@ -22,8 +22,8 @@ func setupMiddlewareRouter() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.GET("/protected", AuthMiddleware(testSecret), func(c *gin.Context) {
-		hospital, _ := c.Get("hospital_name")
-		c.JSON(http.StatusOK, gin.H{"hospital": hospital})
+		hospitalID, _ := c.Get("hospital_id")
+		c.JSON(http.StatusOK, gin.H{"hospital_id": hospitalID})
 	})
 	return r
 }
@@ -57,9 +57,9 @@ func TestMiddleware_ExpiredToken(t *testing.T) {
 	r := setupMiddlewareRouter()
 
 	token := generateTestToken(jwt.MapClaims{
-		"sub":           1,
-		"hospital_name": "Hospital A",
-		"exp":           time.Now().Add(-time.Hour).Unix(), // expired
+		"sub":         1,
+		"hospital_id": float64(1),
+		"exp":         time.Now().Add(-time.Hour).Unix(), // expired
 	})
 
 	req := httptest.NewRequest("GET", "/protected", nil)
@@ -76,9 +76,9 @@ func TestMiddleware_ValidToken(t *testing.T) {
 	r := setupMiddlewareRouter()
 
 	token := generateTestToken(jwt.MapClaims{
-		"sub":           1,
-		"hospital_name": "Hospital A",
-		"exp":           time.Now().Add(time.Hour).Unix(),
+		"sub":         1,
+		"hospital_id": float64(1),
+		"exp":         time.Now().Add(time.Hour).Unix(),
 	})
 
 	req := httptest.NewRequest("GET", "/protected", nil)
@@ -96,9 +96,9 @@ func TestMiddleware_WrongSecret(t *testing.T) {
 
 	// Sign with wrong secret
 	wrongToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub":           1,
-		"hospital_name": "Hospital A",
-		"exp":           time.Now().Add(time.Hour).Unix(),
+		"sub":         1,
+		"hospital_id": float64(1),
+		"exp":         time.Now().Add(time.Hour).Unix(),
 	})
 	signed, _ := wrongToken.SignedString([]byte("wrong-secret"))
 

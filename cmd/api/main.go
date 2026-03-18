@@ -10,7 +10,7 @@ import (
 	"agnos-gin/internal/service"
 	"fmt"
 	"log"
-	"time" // ERROR FIX: This import is required for time.Sleep
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/postgres"
@@ -31,7 +31,6 @@ func main() {
 	var db *gorm.DB
 
 	// Retry connection logic
-	// CRITICAL FIX: We use '=' here, NOT ':=', to update the outer 'db' variable.
 	for i := 0; i < 10; i++ {
 		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 		if err == nil {
@@ -42,19 +41,29 @@ func main() {
 		time.Sleep(2 * time.Second)
 	}
 
-	// If db is still nil or err exists after retries, we must stop.
 	if err != nil {
 		log.Fatal("Cannot connect to DB after retries:", err)
 	}
 
-	// 3. Migrate
-	// If the app crashed at line 37 before, it was likely here because 'db' was nil.
-	if err := db.AutoMigrate(&domain.Staff{}, &domain.Patient{}); err != nil {
+	// 3. Migrate (Hospital must be first due to FK dependencies)
+	if err := db.AutoMigrate(&domain.Hospital{}, &domain.Staff{}, &domain.Patient{}); err != nil {
 		log.Fatal("Migration failed:", err)
 	}
 
-	// 4. Init Layers
+	// 4. Seed default hospitals
+	hospitals := []domain.Hospital{
+		{Name: "Hospital A"},
+		{Name: "Hospital B"},
+	}
+	for _, h := range hospitals {
+		// Only create if not exists
+		db.FirstOrCreate(&h, domain.Hospital{Name: h.Name})
+	}
+	log.Println("Default hospitals seeded.")
+
+	// 5. Init Layers
 	// Repos
+	hospitalRepo := repository.NewHospitalRepository(db)
 	staffRepo := repository.NewStaffRepository(db)
 	patientRepo := repository.NewPatientRepository(db)
 
@@ -62,14 +71,14 @@ func main() {
 	hospitalClient := infrastructure.NewHospitalApiClient(cfg.HospitalAPIURL)
 
 	// Services
-	authService := service.NewAuthService(staffRepo, cfg.JWTSecret)
+	authService := service.NewAuthService(staffRepo, hospitalRepo, cfg.JWTSecret)
 	patientService := service.NewPatientService(patientRepo, hospitalClient)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authService)
 	patientHandler := handler.NewPatientHandler(patientService)
 
-	// 5. Router
+	// 6. Router
 	r := gin.Default()
 
 	// Serve static files (CSS, JS)

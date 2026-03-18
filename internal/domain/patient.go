@@ -18,12 +18,13 @@ type Patient struct {
 	Email        string    `json:"email"`
 	Gender       string    `json:"gender"`
 	DateOfBirth  string    `json:"date_of_birth"`
-	HospitalName string    `gorm:"index" json:"hospital_name"` // Requirement #3
+	HospitalID   uint      `gorm:"index" json:"hospital_id"`
+	Hospital     Hospital  `gorm:"foreignKey:HospitalID" json:"hospital"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type PatientRepository interface {
 	Create(patient *Patient) error
-	Search(filters map[string]interface{}, staffHospital string) ([]Patient, error)
+	Search(filters map[string]interface{}, hospitalID uint) ([]Patient, error)
 }

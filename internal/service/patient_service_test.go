@@ -22,10 +22,10 @@ func (m *mockPatientRepo) Create(p *domain.Patient) error {
 	return nil
 }
 
-func (m *mockPatientRepo) Search(filters map[string]interface{}, staffHospital string) ([]domain.Patient, error) {
+func (m *mockPatientRepo) Search(filters map[string]interface{}, hospitalID uint) ([]domain.Patient, error) {
 	var result []domain.Patient
 	for _, p := range m.patients {
-		if p.HospitalName != staffHospital {
+		if p.HospitalID != hospitalID {
 			continue
 		}
 		result = append(result, p)
@@ -38,14 +38,14 @@ func (m *mockPatientRepo) Search(filters map[string]interface{}, staffHospital s
 func TestSearch_LocalDBHit(t *testing.T) {
 	repo := &mockPatientRepo{
 		patients: []domain.Patient{
-			{ID: 1, FirstNameEN: "John", NationalID: "123", HospitalName: "Hospital A"},
+			{ID: 1, FirstNameEN: "John", NationalID: "123", HospitalID: 1},
 		},
 	}
 	client := infrastructure.NewHospitalApiClient("http://fake-api")
 	svc := NewPatientService(repo, client)
 
 	filters := map[string]interface{}{"national_id": "123"}
-	results, err := svc.Search(filters, "Hospital A")
+	results, err := svc.Search(filters, 1) // Hospital A (ID=1)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -60,14 +60,14 @@ func TestSearch_LocalDBHit(t *testing.T) {
 func TestSearch_HospitalIsolation(t *testing.T) {
 	repo := &mockPatientRepo{
 		patients: []domain.Patient{
-			{ID: 1, FirstNameEN: "John", HospitalName: "Hospital A"},
-			{ID: 2, FirstNameEN: "Jane", HospitalName: "Hospital B"},
+			{ID: 1, FirstNameEN: "John", HospitalID: 1},
+			{ID: 2, FirstNameEN: "Jane", HospitalID: 2},
 		},
 	}
 	client := infrastructure.NewHospitalApiClient("http://fake-api")
 	svc := NewPatientService(repo, client)
 
-	results, err := svc.Search(map[string]interface{}{}, "Hospital A")
+	results, err := svc.Search(map[string]interface{}{}, 1) // Hospital A only
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -84,8 +84,8 @@ func TestSearch_EmptyResult_NonHospitalA(t *testing.T) {
 	client := infrastructure.NewHospitalApiClient("http://fake-api")
 	svc := NewPatientService(repo, client)
 
-	// Staff from Hospital B should NOT trigger external API call
-	results, err := svc.Search(map[string]interface{}{"national_id": "999"}, "Hospital B")
+	// Staff from Hospital B (ID=2) should NOT trigger external API call
+	results, err := svc.Search(map[string]interface{}{"national_id": "999"}, 2)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -100,8 +100,8 @@ func TestSearch_ExternalAPIError_ReturnsError(t *testing.T) {
 	client := infrastructure.NewHospitalApiClient("http://127.0.0.1:1")
 	svc := NewPatientService(repo, client)
 
-	// Hospital A staff with no local results should trigger external API
-	_, err := svc.Search(map[string]interface{}{"national_id": "123"}, "Hospital A")
+	// Hospital A (ID=1) staff with no local results should trigger external API
+	_, err := svc.Search(map[string]interface{}{"national_id": "123"}, 1)
 	if err == nil {
 		t.Fatal("expected error from unreachable external API, got nil")
 	}
@@ -110,14 +110,14 @@ func TestSearch_ExternalAPIError_ReturnsError(t *testing.T) {
 func TestSearch_NoFilters_ReturnsAll(t *testing.T) {
 	repo := &mockPatientRepo{
 		patients: []domain.Patient{
-			{ID: 1, FirstNameEN: "John", HospitalName: "Hospital A"},
-			{ID: 2, FirstNameEN: "Jane", HospitalName: "Hospital A"},
+			{ID: 1, FirstNameEN: "John", HospitalID: 1},
+			{ID: 2, FirstNameEN: "Jane", HospitalID: 1},
 		},
 	}
 	client := infrastructure.NewHospitalApiClient("http://fake-api")
 	svc := NewPatientService(repo, client)
 
-	results, err := svc.Search(map[string]interface{}{}, "Hospital A")
+	results, err := svc.Search(map[string]interface{}{}, 1)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -134,7 +134,7 @@ func (m *errorPatientRepo) Create(p *domain.Patient) error {
 	return errors.New("db error")
 }
 
-func (m *errorPatientRepo) Search(filters map[string]interface{}, staffHospital string) ([]domain.Patient, error) {
+func (m *errorPatientRepo) Search(filters map[string]interface{}, hospitalID uint) ([]domain.Patient, error) {
 	return nil, errors.New("db connection error")
 }
 
@@ -143,7 +143,7 @@ func TestSearch_DBError_ReturnsError(t *testing.T) {
 	client := infrastructure.NewHospitalApiClient("http://fake-api")
 	svc := NewPatientService(repo, client)
 
-	_, err := svc.Search(map[string]interface{}{}, "Hospital A")
+	_, err := svc.Search(map[string]interface{}{}, 1)
 	if err == nil {
 		t.Fatal("expected db error, got nil")
 	}

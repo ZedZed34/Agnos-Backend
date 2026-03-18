@@ -26,7 +26,9 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 		}
 
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			c.Set("hospital_name", claims["hospital_name"])
+			// hospital_id comes as float64 from JWT, convert to uint
+			hospitalID := uint(claims["hospital_id"].(float64))
+			c.Set("hospital_id", hospitalID)
 			c.Next()
 		} else {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid claims"})

@@ -5,8 +5,9 @@ import "time"
 type Staff struct {
 	ID           uint      `gorm:"primaryKey" json:"id"`
 	Username     string    `gorm:"unique" json:"username"`
-	PasswordHash string    `json:"-"` // Security: Don't export password
-	HospitalName string    `json:"hospital"`
+	PasswordHash string    `json:"-"`
+	HospitalID   uint      `json:"hospital_id"`
+	Hospital     Hospital  `gorm:"foreignKey:HospitalID" json:"hospital"`
 	CreatedAt    time.Time `json:"created_at"`
 }
 

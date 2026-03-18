@@ -16,20 +16,20 @@ func NewPatientRepository(db *gorm.DB) domain.PatientRepository {
 }
 
 func (r *patientRepo) Create(p *domain.Patient) error {
-	// FIX: Use OnConflict to Upsert (Update or Insert) the patient data.
-	// This ensures that if we fetch fresh data from the external API for an 
+	// Use OnConflict to Upsert (Update or Insert) the patient data.
+	// This ensures that if we fetch fresh data from the external API for an
 	// existing patient, we update our local cache rather than failing or duplicating.
 	return r.db.Clauses(clause.OnConflict{
 		UpdateAll: true,
 	}).Create(p).Error
 }
 
-func (r *patientRepo) Search(filters map[string]interface{}, staffHospital string) ([]domain.Patient, error) {
+func (r *patientRepo) Search(filters map[string]interface{}, hospitalID uint) ([]domain.Patient, error) {
 	var patients []domain.Patient
 	query := r.db.Model(&domain.Patient{})
 
-	// Requirement #3: Enforce hospital isolation
-	query = query.Where("hospital_name = ?", staffHospital)
+	// Requirement #3: Enforce hospital isolation via FK
+	query = query.Where("hospital_id = ?", hospitalID)
 
 	// Requirement #4: Dynamic Filters
 	if val, ok := filters["national_id"]; ok && val != "" {

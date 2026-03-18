@@ -10,12 +10,13 @@ import (
 )
 
 type AuthService struct {
-	repo      domain.StaffRepository
-	jwtSecret string
+	staffRepo    domain.StaffRepository
+	hospitalRepo domain.HospitalRepository
+	jwtSecret    string
 }
 
-func NewAuthService(repo domain.StaffRepository, secret string) *AuthService {
-	return &AuthService{repo: repo, jwtSecret: secret}
+func NewAuthService(staffRepo domain.StaffRepository, hospitalRepo domain.HospitalRepository, secret string) *AuthService {
+	return &AuthService{staffRepo: staffRepo, hospitalRepo: hospitalRepo, jwtSecret: secret}
 }
 
 func (s *AuthService) Register(username, password, hospital string) error {
@@ -23,16 +24,23 @@ func (s *AuthService) Register(username, password, hospital string) error {
 	if err != nil {
 		return err
 	}
+
+	// Look up hospital by name
+	h, err := s.hospitalRepo.FindByName(hospital)
+	if err != nil {
+		return errors.New("hospital not found")
+	}
+
 	staff := &domain.Staff{
 		Username:     username,
 		PasswordHash: string(hashed),
-		HospitalName: hospital,
+		HospitalID:   h.ID,
 	}
-	return s.repo.Create(staff)
+	return s.staffRepo.Create(staff)
 }
 
 func (s *AuthService) Login(username, password, hospital string) (string, error) {
-	staff, err := s.repo.FindByUsername(username)
+	staff, err := s.staffRepo.FindByUsername(username)
 	if err != nil {
 		return "", errors.New("invalid credentials")
 	}
@@ -41,16 +49,16 @@ func (s *AuthService) Login(username, password, hospital string) (string, error)
 		return "", errors.New("invalid credentials")
 	}
 
-	// Verify hospital matches
-	if staff.HospitalName != hospital {
+	// Verify hospital matches via the loaded relation
+	if staff.Hospital.Name != hospital {
 		return "", errors.New("invalid credentials")
 	}
 
-	// Generate JWT with Hospital Claim
+	// Generate JWT with Hospital ID Claim
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub":           staff.ID,
-		"hospital_name": staff.HospitalName,
-		"exp":           time.Now().Add(time.Hour * 24).Unix(),
+		"sub":         staff.ID,
+		"hospital_id": staff.HospitalID,
+		"exp":         time.Now().Add(time.Hour * 24).Unix(),
 	})
 
 	return token.SignedString([]byte(s.jwtSecret))
