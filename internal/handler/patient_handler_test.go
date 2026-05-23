@@ -85,7 +85,7 @@ func TestSearchHandler_NoResults(t *testing.T) {
 
 	var resp map[string][]domain.Patient
 	_ = json.Unmarshal(w.Body.Bytes(), &resp)
-	if resp["data"] != nil && len(resp["data"]) != 0 {
+	if len(resp["data"]) != 0 {
 		t.Fatalf("expected empty data array, got %d results", len(resp["data"]))
 	}
 }
