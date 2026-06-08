@@ -1,9 +1,14 @@
 package service
 
 import (
+	"log"
+
 	"agnos-gin/internal/domain"
 	"agnos-gin/internal/infrastructure"
 )
+
+// HospitalAID is the database ID of Hospital A, the only hospital with an external API fallback.
+const HospitalAID uint = 1
 
 type PatientService struct {
 	repo        domain.PatientRepository
@@ -21,8 +26,8 @@ func (s *PatientService) Search(filters map[string]interface{}, hospitalID uint)
 		return nil, err
 	}
 
-	// 2. Middleware Logic: If searching by ID and user is from Hospital A (ID=1), check external API
-	if len(patients) == 0 && hospitalID == 1 {
+	// 2. Middleware Logic: If searching by ID and user is from Hospital A, check external API
+	if len(patients) == 0 && hospitalID == HospitalAID {
 		var id string
 		if val, ok := filters["national_id"].(string); ok {
 			id = val
@@ -36,9 +41,11 @@ func (s *PatientService) Search(filters map[string]interface{}, hospitalID uint)
 				return nil, err
 			}
 			if externalP != nil {
-				// Mark as Hospital A (ID=1) and cache it
+				// Mark as Hospital A and cache it locally
 				externalP.HospitalID = hospitalID
-				_ = s.repo.Create(externalP)
+				if err := s.repo.Create(externalP); err != nil {
+					log.Printf("failed to cache external patient %s: %v", id, err)
+				}
 				return []domain.Patient{*externalP}, nil
 			}
 		}

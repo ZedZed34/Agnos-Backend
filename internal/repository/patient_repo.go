@@ -28,10 +28,10 @@ func (r *patientRepo) Search(filters map[string]interface{}, hospitalID uint) ([
 	var patients []domain.Patient
 	query := r.db.Model(&domain.Patient{})
 
-	// Requirement #3: Enforce hospital isolation via FK
+	// Enforce hospital isolation — scopes all queries to the staff's hospital
 	query = query.Where("hospital_id = ?", hospitalID)
 
-	// Requirement #4: Dynamic Filters
+	// Apply dynamic filters
 	if val, ok := filters["national_id"]; ok && val != "" {
 		query = query.Where("national_id = ?", val)
 	}
