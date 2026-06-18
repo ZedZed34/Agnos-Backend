@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/zedzed45/.claude/**)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(npx --version)",
+      "Bash(go fmt *)",
+      "Bash(go vet *)",
+      "Bash(go test *)",
+      "Bash(docker --version)",
+      "Bash(docker compose *)",
+      "Bash(docker run *)"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "postgres"
+  ]
+}

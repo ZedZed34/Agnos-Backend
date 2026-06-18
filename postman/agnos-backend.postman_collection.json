@@ -1,0 +1,240 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+		"name": "Agnos Backend",
+		"description": "REST API collection for the Agnos Backend service.\n\n## Overview\nStaff authentication and patient search endpoints scoped by hospital. JWT Bearer tokens are required for protected routes.\n\n## Authentication\n1. Register a staff account via `POST /staff/create`\n2. Login via `POST /staff/login` to obtain a JWT token (auto-saved to collection variable)\n3. Use the token on protected endpoints (e.g. `GET /patient/search`)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Auth",
+			"description": "Staff registration and login endpoints.",
+			"item": [
+				{
+					"name": "Register Staff",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"john.doe\",\n    \"password\": \"securePassword123\",\n    \"hospital\": \"Hospital A\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/staff/create",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"staff",
+								"create"
+							]
+						},
+						"description": "Register a new staff member.\n\n**Auth:** None\n\n**Request Body (JSON):**\n- `username` (string, required) -- unique username\n- `password` (string, required) -- plain text password (hashed server-side)\n- `hospital` (string, required) -- must be \"Hospital A\" or \"Hospital B\"\n\n**Success:** 201 Created\n```json\n{\n    \"message\": \"Staff created\"\n}\n```\n\n**Errors:**\n- 400 Bad Request -- malformed JSON or missing required fields\n- 500 Internal Server Error -- invalid hospital name or duplicate username"
+					},
+					"response": [
+						{
+							"name": "Created",
+							"status": "Created",
+							"code": 201,
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n    \"message\": \"Staff created\"\n}"
+						}
+					]
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"token\", jsonData.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"john.doe\",\n    \"password\": \"securePassword123\",\n    \"hospital\": \"Hospital A\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/staff/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"staff",
+								"login"
+							]
+						},
+						"description": "Log in an existing staff member and receive a JWT token.\n\n**Auth:** None\n\n**Request Body (JSON):**\n- `username` (string, required)\n- `password` (string, required)\n- `hospital` (string, required) -- must match the hospital the staff was registered under\n\n**Success:** 200 OK\n```json\n{\n    \"token\": \"<jwt_token>\"\n}\n```\n\n**Tests:** On success, the returned token is automatically saved to the collection variable `token` for use on authenticated endpoints.\n\n**Errors:**\n- 400 Bad Request -- malformed JSON or missing required fields\n- 401 Unauthorized -- invalid credentials (wrong password, wrong hospital, or user not found)"
+					},
+					"response": [
+						{
+							"name": "OK",
+							"status": "OK",
+							"code": 200,
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n    \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTA5MjY1MjgsImhvc3BpdGFsX2lkIjoxLCJzdWIiOjF9.example\"\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Patients",
+			"description": "Patient search endpoints. All requests require a valid JWT Bearer token.",
+			"item": [
+				{
+					"name": "Search Patients",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/patient/search?national_id=1234567890123&first_name=John&last_name=Doe",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"patient",
+								"search"
+							],
+							"query": [
+								{
+									"key": "national_id",
+									"value": "1234567890123",
+									"description": "Filter by national ID (exact match)",
+									"disabled": true
+								},
+								{
+									"key": "passport_id",
+									"value": "",
+									"description": "Filter by passport ID (exact match)",
+									"disabled": true
+								},
+								{
+									"key": "first_name",
+									"value": "John",
+									"description": "Filter by first name (case-insensitive partial match on en/th fields)",
+									"disabled": true
+								},
+								{
+									"key": "middle_name",
+									"value": "",
+									"description": "Filter by middle name (case-insensitive partial match on en/th fields)",
+									"disabled": true
+								},
+								{
+									"key": "last_name",
+									"value": "Doe",
+									"description": "Filter by last name (case-insensitive partial match on en/th fields)",
+									"disabled": true
+								},
+								{
+									"key": "date_of_birth",
+									"value": "",
+									"description": "Filter by date of birth (exact match)",
+									"disabled": true
+								},
+								{
+									"key": "phone_number",
+									"value": "",
+									"description": "Filter by phone number (exact match)",
+									"disabled": true
+								},
+								{
+									"key": "email",
+									"value": "",
+									"description": "Filter by email address (exact match)",
+									"disabled": true
+								}
+							]
+						},
+						"description": "Search for patients belonging to the authenticated staff member's hospital.\n\n**Auth:** Bearer JWT token (required) -- uses collection variable `{{token}}` set by the Login request's test script.\n\n**Query Parameters (all optional):**\n- `national_id` -- exact match on national ID\n- `passport_id` -- exact match on passport ID\n- `first_name` -- case-insensitive partial match on both `first_name_en` and `first_name_th`\n- `middle_name` -- case-insensitive partial match on both `middle_name_en` and `middle_name_th`\n- `last_name` -- case-insensitive partial match on both `last_name_en` and `last_name_th`\n- `date_of_birth` -- exact match on date of birth\n- `phone_number` -- exact match on phone number\n- `email` -- exact match on email address\n\n**Note:** The `hospital_id` is automatically injected from the JWT token claims -- results are always scoped to the staff member's hospital.\n\n**Success:** 200 OK\n```json\n{\n    \"data\": [\n        {\n            \"id\": 1,\n            \"hospital_id\": 1,\n            \"national_id\": \"1234567890123\",\n            \"passport_id\": \"AB123456\",\n            \"first_name_en\": \"John\",\n            \"middle_name_en\": \"\",\n            \"last_name_en\": \"Doe\",\n            \"first_name_th\": \"จอห์น\",\n            \"middle_name_th\": \"\",\n            \"last_name_th\": \"โดe\",\n            \"date_of_birth\": \"1990-01-15\",\n            \"phone_number\": \"0812345678\",\n            \"email\": \"john.doe@example.com\"\n        }\n    ]\n}\n```\n\n**Errors:**\n- 401 Unauthorized -- missing token, invalid token, or invalid/missing hospital_id claim\n- 500 Internal Server Error -- server error"
+					},
+					"response": [
+						{
+							"name": "OK",
+							"status": "OK",
+							"code": 200,
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"body": "{\n    \"data\": [\n        {\n            \"id\": 1,\n            \"hospital_id\": 1,\n            \"national_id\": \"1234567890123\",\n            \"passport_id\": \"AB123456\",\n            \"first_name_en\": \"John\",\n            \"middle_name_en\": \"\",\n            \"last_name_en\": \"Doe\",\n            \"first_name_th\": \"\\u0e08\\u0e2d\\u0e2b\\u0e4c\\u0e19\",\n            \"middle_name_th\": \"\",\n            \"last_name_th\": \"\\u0e42\\u0e14\",\n            \"date_of_birth\": \"1990-01-15\",\n            \"phone_number\": \"0812345678\",\n            \"email\": \"john.doe@example.com\"\n        }\n    ]\n}"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Static Frontend",
+			"description": "Static frontend assets and HTML page.",
+			"item": [
+				{
+					"name": "Home Page",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": []
+						},
+						"description": "Serves the static frontend HTML page from `./web/index.html`.\n\n**Auth:** None\n\n**Success:** 200 OK (HTML content)"
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

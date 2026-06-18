@@ -22,11 +22,11 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		Hospital string `json:"hospital" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"status": http.StatusBadRequest, "message": err.Error()})
 		return
 	}
 	if err := h.service.Register(input.Username, input.Password, input.Hospital); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create staff"})
+		c.JSON(http.StatusInternalServerError, gin.H{"status": http.StatusInternalServerError, "message": "Failed to create staff"})
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"message": "Staff created"})
@@ -39,12 +39,12 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		Hospital string `json:"hospital" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"status": http.StatusBadRequest, "message": err.Error()})
 		return
 	}
 	token, err := h.service.Login(input.Username, input.Password, input.Hospital)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		c.JSON(http.StatusUnauthorized, gin.H{"status": http.StatusUnauthorized, "message": "Invalid credentials"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"token": token})

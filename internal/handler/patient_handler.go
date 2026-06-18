@@ -18,7 +18,7 @@ func NewPatientHandler(s *service.PatientService) *PatientHandler {
 func (h *PatientHandler) Search(c *gin.Context) {
 	hospitalID, exists := c.Get("hospital_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"status": http.StatusUnauthorized, "message": "Unauthorized"})
 		return
 	}
 
@@ -50,7 +50,7 @@ func (h *PatientHandler) Search(c *gin.Context) {
 
 	patients, err := h.service.Search(filters, hospitalID.(uint))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"status": http.StatusInternalServerError, "message": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": patients})
